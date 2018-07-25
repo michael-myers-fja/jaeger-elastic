@@ -6,11 +6,31 @@ services:
     ports: 
       - "9200:9200"
       - "9300:9300"
+    environment: 
+      - discovery.type=single-node
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    # mem_limit: 1g
+    volumes:
+      - esdata1:/usr/share/elasticsearch/data
+      - eslog:/usr/share/elasticsearch/logs
+      # - ./config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
     healthcheck:
       test: ["CMD", "curl","http://elasticsearch:9200"]
       interval: 30s
       timeout: 10s
       retries: 5
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:6.0.0
+    ports:
+      - "5601:5601"
+    environment: 
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    depends_on: 
+      - "elasticsearch"
 
   collector:
     image: jaegertracing/jaeger-collector
@@ -55,3 +75,9 @@ services:
     command: ["--log-level=debug"]
     depends_on:
       - agent
+
+volumes: 
+  esdata1:
+    driver: local
+  eslog:
+    driver: local
