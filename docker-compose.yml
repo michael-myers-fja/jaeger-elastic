@@ -1,0 +1,57 @@
+version: "3"
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.3.2
+    ports: 
+      - "9200:9200"
+      - "9300:9300"
+    healthcheck:
+      test: ["CMD", "curl","http://elasticsearch:9200"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  collector:
+    image: jaegertracing/jaeger-collector
+    environment:
+      - SPAN_STORAGE_TYPE=elasticsearch
+      - ES_SERVER_URLS=http://elasticsearch:9200
+    ports:
+      - "14269:14269"
+      - "14268:14268"
+      - "14267"
+      - "9411:9411"
+    restart: on-failure
+    command: ["--es.server-urls=http://elasticsearch:9200", "--es.num-shards=1"]
+    depends_on: 
+      - elasticsearch
+
+  agent:
+    image: jaegertracing/jaeger-agent
+    environment:
+      - SPAN_STORAGE_TYPE=elasticsearch
+      - COLLECTOR_HOST_PORT=collector:14267
+    command: ["--collector.host-port=collector:14267"]
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+    restart: on-failure
+    depends_on:
+      - collector
+    
+  query:
+    image: jaegertracing/jaeger-query
+    environment:
+      - SPAN_STORAGE_TYPE=elasticsearch
+      - ES_SERVER_URLS=http://elasticsearch:9200
+      - no_proxy=localhost
+    ports:
+      - "16686:16686"
+      - "16687"
+    restart: on-failure
+    command: ["--log-level=debug"]
+    depends_on:
+      - agent
